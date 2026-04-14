@@ -1,0 +1,47 @@
+# Claude Code specific (important for clean repos)
+.claude/settings.local.json
+.claude/settings.local.*.json
+.claude/conversations/
+.claude/sessions/
+.claude/checkpoints/
+.claude/skills/.cache/
+.claude/skills/*.log
+.claude/skills/state/
+.claude/skills/tmp/
+
+# Personal/local overrides (recommended)
+CLAUDE.local.md
+.claude/CLAUDE.local.md
+
+# Common build/output directories (add more based on your project type)
+node_modules/
+dist/
+build/
+out/
+.env
+.env.local
+.env.*.local
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+
+# J language reference docs (Obsidian vault, not source code)
+docs/
+
+# Working drafts superseded by CLAUDE.md and .gitignore
+MyClaude.md
+MyGitIgnore.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
