@@ -27,6 +27,39 @@ NB. addOKURL requires a boxed list, so pre-initialize it here first.
 OKURL =: 0$<''
 addOKURL 'mcp'
 
-NB. 5. Start JHS - binds socket, calls config via jhscfg, enters jfe event loop
-NB.    This call blocks - the server runs until Ctrl+C
-init ''
+NB. 5. Start server: bind socket and run request loop.
+NB.    init'' calls jfe 1 which is a no-op in jconsole script mode, so
+NB.    we replicate what init does up to the socket bind, then drive the
+NB.    request loop ourselves by calling input'' and eval-ing each sentence.
+NB.    Control structures require a verb body, so the loop lives in mcp_serve.
+
+mcp_serve =: 3 : 0
+  jhscfg''          NB. runs configdefault then our config verb (AUTO=:0, PORT=:65001)
+  IFJHS_z_ =: 1
+  LOCALHOST =: '127.0.0.1'
+  SKSERVER_jhs_ =: _1
+  r =. dobind''
+  if. 0~:r do.
+    echo 'bind failed on port ',":PORT
+    exit''
+  end.
+  sdcheck_jsocket_ sdlisten_jsocket_ SKLISTEN,5
+  cookie =: 'jcookie=',":6!:0''
+  echo 'jmcp MCP server listening on http://',LOCALHOST,':',(":PORT),'/mcp'
+  while. 1 do.
+    try.
+      getdata''    NB. blocks until connection; sets NV_jhs_, URL, METHOD, RAW
+      NB. JHS creates a 'mcp' locale with copath=z after getdata.
+      NB. jev_post_raw_mcp_ is defined in jhs so use explicit locale suffix.
+      if. (1=RAW) *. 'mcp'-:URL do.
+        NB. jev_post_raw_mcp_ ends with _ so locale suffix __jhs_ is ill-formed.
+        NB. Use ".'' to evaluate the call string in the jhs locale context.
+        ".('jev_post_raw_mcp_ ''''')
+      end.
+    catch.
+      NB. socket/connection errors are normal - keep looping
+    end.
+  end.
+)
+
+mcp_serve''

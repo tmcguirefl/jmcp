@@ -16,14 +16,19 @@ NB. where each cell is itself a boxed item.
 NB. x is key string, y is decoded pjson object matrix
 NB. Returns the value (unboxed), or '' if key not found
 mcp_getfield =: 4 : 0
+  r =. ''
   i =. 0
+  nx =. , x          NB. ravel x: pjson keys are rank-1; literal 'str' is rank-0
   while. i < # y do.
     row =. i { y
-    k =. > 0 { row
-    if. k -: x do. return. > 1 { row end.
+    k =. , > 0 { row  NB. ravel extracted key to match rank
+    if. k -: nx do.
+      r =. > 1 { row
+      return.
+    end.
     i =. >: i
   end.
-  ''
+  r                  NB. return '' (default) if key not found
 )
 
 NB. -----------------------------------------------------------------------
@@ -43,9 +48,10 @@ NB. Encode one tool entry as a JSON object string
 NB. y is a boxed triple: <(name;desc;schemastr)
 mcp_encode_one_tool =: 3 : 0
   entry =. > y
-  nm   =. > 0 { entry
-  desc =. > 1 { entry
-  sch  =. > 2 { entry
+  NB. J pads boxed strings to equal length - dltb removes trailing spaces
+  nm   =. dltb > 0 { entry
+  desc =. dltb > 1 { entry
+  sch  =.      > 2 { entry
   '{"name":' , (enc_pjson_ nm) , ',"description":' , (enc_pjson_ desc) , ',"inputSchema":' , sch , '}'
 )
 
