@@ -36,7 +36,7 @@ NB.    Control structures require a verb body, so the loop lives in mcp_serve.
 mcp_serve =: 3 : 0
   jhscfg''          NB. runs configdefault then our config verb (AUTO=:0, PORT=:65001)
   IFJHS_z_ =: 1
-  LOCALHOST =: '127.0.0.1'
+  LOCALHOST =: '0.0.0.0'
   SKSERVER_jhs_ =: _1
   r =. dobind''
   if. 0~:r do.
