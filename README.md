@@ -52,8 +52,8 @@ config =: 3 : 0
   PORT =: 65001
 )
 
-load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
-load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
+load '~/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
+load '~/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
 
 OKURL =: 0$<''
 addOKURL 'mcp'
@@ -108,7 +108,7 @@ mcp_getfield =: 4 : 0
 ## Running the Server
 
 ```sh
-jconsole -js "load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/server.ijs'"
+jconsole -js "load '~/jdev/jmcp/jhs-mcp-server/server.ijs'"
 ```
 
 The server prints:
@@ -198,8 +198,8 @@ Once the verbs work standalone, register them:
 
 ```j
 NB. 1. Load the implementation files
-load '/Users/tomdevel/jdev/jmcp/j-tools/add.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/multiply.ijs'
+load '~/jdev/jmcp/j-tools/add.ijs'
+load '~/jdev/jmcp/j-tools/multiply.ijs'
 
 NB. 2. Define JSON Schema strings for each tool
 mcp_schema_add =: '{"type":"object","properties":{"a":{"type":"number"},"b":{"type":"number"}},"required":["a","b"]}'
