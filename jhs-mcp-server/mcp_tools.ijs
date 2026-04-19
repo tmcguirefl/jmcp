@@ -11,6 +11,9 @@ load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_market_data.ijs'
 load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_basic_financials.ijs'
 load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_recommendation_trends.ijs'
 
+NB. Load agenda-based dispatch table (defines mcp_dispatch)
+load '/Users/tomdevel/jdev/jmcp/j-tools/mcp_tool_registry.ijs'
+
 NB. -----------------------------------------------------------------------
 NB. mcp_getfield - look up a key in a pjson-decoded object
 NB. pjson dec_object returns a boxed 2-col matrix; each row is (key;value)
@@ -84,29 +87,4 @@ mcp_calltool =: 4 : 0
   end.
 )
 
-NB. x is tool name, y is decoded arguments object
-NB. Returns result as string (raw JSON from Finnhub API)
-mcp_dispatch =: 4 : 0
-  select. x
-  case. 'list_news' do.
-    category =. 'category' mcp_getfield y
-    count    =. 'count'    mcp_getfield y
-    NB. Apply defaults when fields are absent (mcp_getfield returns '' if missing)
-    if. 0 = # category do. category =. 'general' end.
-    if. 0 = # ": count  do. count    =. 10        end.
-    mcp_list_news category ; count
-  case. 'get_market_data' do.
-    stock =. 'stock' mcp_getfield y
-    mcp_get_market_data stock
-  case. 'get_basic_financials' do.
-    stock  =. 'stock'  mcp_getfield y
-    metric =. 'metric' mcp_getfield y
-    if. 0 = # metric do. metric =. 'all' end.
-    mcp_get_basic_financials stock ; metric
-  case. 'get_recommendation_trends' do.
-    stock =. 'stock' mcp_getfield y
-    mcp_get_recommendation_trends stock
-  case. do.
-    'unknown tool: ' , x assert 0
-  end.
-)
+NB. mcp_dispatch is defined in j-tools/mcp_tool_registry.ijs via agenda (@.).
