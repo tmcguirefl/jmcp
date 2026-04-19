@@ -18,19 +18,9 @@ NB. where each cell is itself a boxed item.
 NB. x is key string, y is decoded pjson object matrix
 NB. Returns the value (unboxed), or '' if key not found
 mcp_getfield =: 4 : 0
-  r =. ''
-  i =. 0
-  nx =. , x          NB. ravel x: pjson keys are rank-1; literal 'str' is rank-0
-  while. i < # y do.
-    row =. i { y
-    k =. , > 0 { row  NB. ravel extracted key to match rank
-    if. k -: nx do.
-      r =. > 1 { row
-      return.
-    end.
-    i =. >: i
-  end.
-  r                  NB. return '' (default) if key not found
+  keys =. (< @: , @: >) each 0 {"1 y  NB. extract key column; ravel+rebox each to normalise rank
+  idx  =. keys i. < , x                NB. box+ravel x to match; i. returns #keys if not found
+  if. idx < # keys do. > 1 { idx { y else. '' end.
 )
 
 NB. -----------------------------------------------------------------------
