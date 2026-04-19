@@ -5,11 +5,8 @@ NB. Loaded by server.ijs before mcp_handler.ijs
 
 coclass 'jhs'
 
-NB. Load tool implementations
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_list_news.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_market_data.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_basic_financials.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_recommendation_trends.ijs'
+NB. Load all Finnhub tools (coclass 'finnhub' — isolated locale, single APIKEY read)
+load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub.ijs'
 
 NB. Load agenda-based dispatch table (defines mcp_dispatch)
 load '/Users/tomdevel/jdev/jmcp/j-tools/mcp_tool_registry.ijs'

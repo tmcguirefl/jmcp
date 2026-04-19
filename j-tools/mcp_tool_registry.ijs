@@ -1,5 +1,5 @@
 NB. mcp_tool_registry.ijs - Agenda-based tool dispatcher
-NB. Loaded by mcp_tools.ijs after all tool .ijs files are loaded.
+NB. Loaded by mcp_tools.ijs after finnhub.ijs is loaded.
 NB. Defines: MCP_DISPATCH_NAMES, MCP_DISPATCH_GERUNDS, mcp_dispatch
 NB.
 NB. Dispatch works via J's agenda (@.):
@@ -23,22 +23,22 @@ mcp_run_list_news =: 3 : 0
   count    =. 'count'    mcp_getfield_jhs_ y
   if. 0 = # category do. category =. 'general' end.
   if. 0 = # ": count  do. count    =. 10        end.
-  mcp_list_news_jhs_ category ; count
+  list_news_finnhub_ category ; count
 )
 
 mcp_run_get_market_data =: 3 : 0
-  mcp_get_market_data_jhs_ 'stock' mcp_getfield_jhs_ y
+  get_market_data_finnhub_ 'stock' mcp_getfield_jhs_ y
 )
 
 mcp_run_get_basic_financials =: 3 : 0
   stock  =. 'stock'  mcp_getfield_jhs_ y
   metric =. 'metric' mcp_getfield_jhs_ y
   if. 0 = # metric do. metric =. 'all' end.
-  mcp_get_basic_financials_jhs_ stock ; metric
+  get_basic_financials_finnhub_ stock ; metric
 )
 
 mcp_run_get_recommendation_trends =: 3 : 0
-  mcp_get_recommendation_trends_jhs_ 'stock' mcp_getfield_jhs_ y
+  get_recommendation_trends_finnhub_ 'stock' mcp_getfield_jhs_ y
 )
 
 NB. Fallback for unregistered tools - x carries the tool name for the error message
