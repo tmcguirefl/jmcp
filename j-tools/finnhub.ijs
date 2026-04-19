@@ -15,8 +15,13 @@ coclass 'finnhub'
 
 require '~addons/web/gethttp/gethttp.ijs'
 
-NB. Read API key once at load time
-APIKEY =: dltb 2!:5 'FINNHUB_API_KEY'
+NB. Read API key once at load time.
+NB. 2!:5 returns numeric 0 when var is unset; the init verb guards against that.
+read_apikey =: 3 : 0
+  r =. 2!:5 'FINNHUB_API_KEY'
+  if. 2 = 3!:0 r do. dltb r else. '' end.
+)
+APIKEY =: read_apikey''
 
 NB. -----------------------------------------------------------------------
 NB. fetch - GET a URL, return response body as string

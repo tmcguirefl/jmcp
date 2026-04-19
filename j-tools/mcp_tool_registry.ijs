@@ -15,10 +15,11 @@ NB. adapter verb (before mcp_run_unknown_tool) to MCP_DISPATCH_GERUNDS.
 coclass 'jhs'
 
 NB. -----------------------------------------------------------------------
-NB. Adapter verbs - dyadic: x=tool name (unused), y=decoded pjson args object
-NB. Each extracts its own fields from y and calls the corresponding tool verb.
+NB. Adapter verbs - dyadic: x=tool name, y=decoded pjson args object
+NB. Agenda always calls the selected verb dyadically, so all must be 4:0.
+NB. x is ignored except in mcp_run_unknown_tool where it names the bad tool.
 
-mcp_run_list_news =: 3 : 0
+mcp_run_list_news =: 4 : 0
   category =. 'category' mcp_getfield_jhs_ y
   count    =. 'count'    mcp_getfield_jhs_ y
   if. 0 = # category do. category =. 'general' end.
@@ -26,23 +27,23 @@ mcp_run_list_news =: 3 : 0
   list_news_finnhub_ category ; count
 )
 
-mcp_run_get_market_data =: 3 : 0
+mcp_run_get_market_data =: 4 : 0
   get_market_data_finnhub_ 'stock' mcp_getfield_jhs_ y
 )
 
-mcp_run_get_basic_financials =: 3 : 0
+mcp_run_get_basic_financials =: 4 : 0
   stock  =. 'stock'  mcp_getfield_jhs_ y
   metric =. 'metric' mcp_getfield_jhs_ y
   if. 0 = # metric do. metric =. 'all' end.
   get_basic_financials_finnhub_ stock ; metric
 )
 
-mcp_run_get_recommendation_trends =: 3 : 0
+mcp_run_get_recommendation_trends =: 4 : 0
   get_recommendation_trends_finnhub_ 'stock' mcp_getfield_jhs_ y
 )
 
 NB. Fallback for unregistered tools - x carries the tool name for the error message
-mcp_run_unknown_tool =: 3 : 0
+mcp_run_unknown_tool =: 4 : 0
   'unknown tool: ' , x assert 0
 )
 
