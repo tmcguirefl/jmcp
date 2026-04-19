@@ -15,93 +15,69 @@ MCP Client (Claude Desktop, etc.)
   JHS HTTP Server  (port 65001)
         │
         ▼
-  jev_post_raw_mcp_          ← mcp_handler.ijs: protocol router
+  jev_post_raw_mcp_              ← mcp_handler.ijs: protocol router
         │
-        ├── initialize        → session management, capability negotiation
-        ├── tools/list        → mcp_tools_json (registry → JSON)
-        └── tools/call        → mcp_dispatch → j-tools/ verb → result
+        ├── initialize            → session management, capability negotiation
+        ├── tools/list            → mcp_tools_json (MCP_TOOL_REGISTRY → JSON)
+        └── tools/call
+                │
+                ▼
+          mcp_dispatch            ← mcp_tool_registry.ijs: agenda (@.) dispatch
+          MCP_DISPATCH_GERUNDS    ← gerund list built with `
+          @. mcp_tool_selector    ← i. lookup into MCP_DISPATCH_NAMES
+                │
+                ▼
+          adapter verb            ← extracts fields from pjson args, calls tool
+                │
+                ▼
+          tool locale verb        ← e.g. get_market_data_finnhub_
 ```
 
 ### File structure
 
 ```
 jhs-mcp-server/
-  server.ijs       — Entry point: loads JHS, sets port, drives the request loop
-  mcp_handler.ijs  — JSON-RPC 2.0 routing (initialize, tools/list, tools/call)
-  mcp_tools.ijs    — Tool registry, mcp_getfield, dispatcher, result wrappers
+  server.ijs            — Entry point: loads JHS, sets port, drives request loop
+  mcp_handler.ijs       — JSON-RPC 2.0 routing (initialize, tools/list, tools/call)
+  mcp_tools.ijs         — Tool registry (MCP_TOOL_REGISTRY), mcp_getfield,
+                          result wrappers, loads tool locales
 
-j-tools/           — One .ijs file per tool; each is independently testable
-docs/              — J language reference vault (NuVoc, J Dictionary, JHS notes)
+j-tools/
+  finnhub.ijs           — coclass 'finnhub': all Finnhub tools, APIKEY, fetch helper
+  mcp_tool_registry.ijs — Agenda dispatch table: adapter verbs, MCP_DISPATCH_NAMES,
+                          MCP_DISPATCH_GERUNDS, mcp_dispatch
+
+docs/                   — J language reference vault (NuVoc, J Dictionary, JHS notes)
 ```
 
 ---
 
-## How It Works
+## Prerequisites
 
-### Server startup (`server.ijs`)
+### J 9.x
 
-`server.ijs` loads JHS, overrides the port and `AUTO` flag via a `config` verb (the correct JHS hook for post-`configdefault` overrides), pre-initialises `OKURL` as a boxed list so `/mcp` is reachable without a login redirect, then drives the request loop manually:
+Install from [jsoftware.com](https://www.jsoftware.com/#/README). The `ide/jhs` and `convert/pjson` addons must be present (included in the standard J distribution).
 
-```j
-NB. server.ijs (simplified)
-load '~addons/ide/jhs/core.ijs'
-coclass 'jhs'
+### Finnhub API key
 
-config =: 3 : 0
-  AUTO =: 0       NB. no browser launch
-  PORT =: 65001
-)
+The Finnhub tools require a free API key from [finnhub.io](https://finnhub.io).
 
-load '~/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
-load '~/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
+1. Register at [finnhub.io/register](https://finnhub.io/register) — the free tier covers all tools in this server.
+2. Copy your key from the Finnhub dashboard.
+3. Set it in your shell environment **before** starting the server:
 
-OKURL =: 0$<''
-addOKURL 'mcp'
-
-mcp_serve =: 3 : 0
-  jhscfg''
-  IFJHS_z_ =: 1
-  LOCALHOST =: '0.0.0.0'
-  SKSERVER_jhs_ =: _1
-  r =. dobind''
-  ...
-  while. 1 do.
-    getdata''
-    if. (1=RAW) *. 'mcp'-:URL do.
-      ".('jev_post_raw_mcp_ ''''')
-    end.
-  end.
-)
-mcp_serve''
+```sh
+# Add to ~/.zshrc or ~/.bash_profile for persistence
+export FINNHUB_API_KEY=your_key_here
 ```
 
-### Protocol handler (`mcp_handler.ijs`)
+Then reload your shell or run `source ~/.zshrc`. Verify with:
 
-`jev_post_raw_mcp_` is the JHS handler verb for `POST /mcp`. It decodes the JSON-RPC body with `dec_pjson_`, dispatches on `method`, and replies with `htmlresponse`. Session IDs are generated and validated on every non-`initialize` call.
-
-### Tool registry (`mcp_tools.ijs`)
-
-Tools are registered as a boxed list of triples `(name ; description ; inputSchema_json)`. `mcp_tools_json` serialises the registry to a JSON array for `tools/list`. `mcp_dispatch` routes `tools/call` to the matching J verb.
-
-`mcp_getfield` extracts a named field from a `dec_pjson_`-decoded object (a boxed 2-column matrix of key–value rows):
-
-```j
-mcp_getfield =: 4 : 0
-  r =. ''
-  i =. 0
-  nx =. , x          NB. ravel: pjson keys are rank-1; literals are rank-0
-  while. i < # y do.
-    row =. i { y
-    k =. , > 0 { row
-    if. k -: nx do.
-      r =. > 1 { row
-      return.
-    end.
-    i =. >: i
-  end.
-  r
-)
+```sh
+echo $FINNHUB_API_KEY
 ```
+
+The server reads the key once at load time into the isolated `finnhub` locale. If the variable is unset, all Finnhub tool calls return `"FINNHUB_API_KEY not set"` as a graceful error rather than crashing.
 
 ---
 
@@ -126,130 +102,215 @@ pkill -f "jconsole.*server.ijs"
 ### Quick smoke test
 
 ```sh
-# 1. initialize — get a session ID
+# 1. initialize — returns session ID in Mcp-Session-Id header
 curl -s -D - -X POST http://localhost:65001/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{}}}'
 
-# 2. tools/list (replace SESSION_ID with the Mcp-Session-Id from step 1)
+# 2. tools/list (replace SESSION_ID with the value from step 1)
 curl -s -X POST http://localhost:65001/mcp \
   -H 'Content-Type: application/json' \
   -H 'Mcp-Session-Id: SESSION_ID' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -m json.tool
+
+# 3. call a tool
+curl -s -X POST http://localhost:65001/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Mcp-Session-Id: SESSION_ID' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_market_data","arguments":{"stock":"AAPL"}}}' \
+  | python3 -m json.tool
+```
+
+---
+
+## How It Works
+
+### Protocol handler (`mcp_handler.ijs`)
+
+`jev_post_raw_mcp_` is the JHS handler verb for every `POST /mcp`. It decodes the JSON-RPC body with `dec_pjson_`, checks for a session ID header, dispatches on `method`, and sends the response via `htmlresponse`.
+
+### Field lookup (`mcp_getfield` in `mcp_tools.ijs`)
+
+`dec_pjson_` returns a boxed n×2 matrix — rows are key/value pairs. `mcp_getfield` uses dyadic `i.` on the key column for a loopless lookup:
+
+```j
+mcp_getfield =: 4 : 0
+  keys =. 0 {"1 y       NB. boxed key column from the n×2 pjson matrix
+  idx  =. keys i. < x   NB. i. uses match on boxes; returns #keys on miss
+  if. idx < # keys do. > 1 { idx { y else. '' end.
+)
+```
+
+### Agenda dispatch (`mcp_tool_registry.ijs`)
+
+`mcp_dispatch` uses J's **agenda** conjunction `@.` to replace a hard-coded `select./case.` block with a data-driven lookup. The dispatch table is two parallel structures kept in `j-tools/mcp_tool_registry.ijs`:
+
+```j
+MCP_DISPATCH_NAMES =: 'list_news' ; 'get_market_data' ; 'get_basic_financials' ; 'get_recommendation_trends'
+
+MCP_DISPATCH_GERUNDS =: mcp_run_list_news`mcp_run_get_market_data`mcp_run_get_basic_financials`mcp_run_get_recommendation_trends`mcp_run_unknown_tool
+```
+
+The selector maps a tool name to an integer index. `i.` on a 4-element list returns `4` on a miss, automatically routing to the `mcp_run_unknown_tool` fallback at index 4:
+
+```j
+mcp_tool_selector =: 4 : 0
+  MCP_DISPATCH_NAMES_jhs_ i. < , x
+)
+
+mcp_dispatch =: MCP_DISPATCH_GERUNDS @. mcp_tool_selector
+```
+
+When `x mcp_dispatch y` is called, agenda:
+1. Calls `x mcp_tool_selector y` → integer index
+2. Selects the corresponding gerund from `MCP_DISPATCH_GERUNDS`
+3. Calls the selected verb with the **original** `x` and `y`
+
+Adapter verbs are `4 : 0` (dyadic) because agenda always calls dyadically. They extract their own fields from `y` (the pjson args object) and forward to the tool locale:
+
+```j
+mcp_run_get_market_data =: 4 : 0
+  get_market_data_finnhub_ 'stock' mcp_getfield_jhs_ y
+)
+```
+
+### Finnhub tool locale (`j-tools/finnhub.ijs`)
+
+All Finnhub tools live in a single file under `coclass 'finnhub'`. This isolates `APIKEY` and the `gethttp` addon from the `jhs` locale, and ensures initialization runs exactly once:
+
+```j
+coclass 'finnhub'
+require '~addons/web/gethttp/gethttp.ijs'
+
+read_apikey =: 3 : 0
+  r =. 2!:5 'FINNHUB_API_KEY'
+  if. 2 = 3!:0 r do. dltb r else. '' end.
+)
+APIKEY =: read_apikey''
+
+fetch =: 3 : 0
+  if. 0 = # APIKEY do. 'FINNHUB_API_KEY not set' return. end.
+  'stdout' gethttp_wgethttp_ y
+)
+
+get_market_data =: 3 : 0
+  fetch 'https://finnhub.io/api/v1/quote?symbol=' , (dltb ": y) , '&token=' , APIKEY
+)
+```
+
+Standalone test (no server needed):
+
+```sh
+FINNHUB_API_KEY=your_key jconsole
+   load '~/jdev/jmcp/j-tools/finnhub.ijs'
+   get_market_data_finnhub_ 'AAPL'
 ```
 
 ---
 
 ## Adding a New Tool — Worked Examples
 
-### Example 1 — `add`: sum two numbers
+The pattern for any new tool group is:
 
-**`j-tools/add.ijs`**
+1. Create a locale file in `j-tools/` — one file per logical group, `coclass 'mylocale'`
+2. Add adapter verbs and register in `j-tools/mcp_tool_registry.ijs`
+3. Add schema and registry entry in `jhs-mcp-server/mcp_tools.ijs`
+
+### Example — `add` and `multiply`
+
+#### Step 1 — Tool verbs in their own locale (`j-tools/math.ijs`)
 
 ```j
-NB. add.ijs - Add two numbers
-NB. Standalone test:  load 'j-tools/add.ijs'  then  mcp_add 3;5  NB. gives 8
+NB. math.ijs - Simple arithmetic tools
+NB. Standalone test:
+NB.   load '~/jdev/jmcp/j-tools/math.ijs'
+NB.   add_math_ 3 ; 5     NB. gives 8
+NB.   multiply_math_ 6 ; 7  NB. gives 42
 
-coclass 'jhs'
+coclass 'math'
 
-NB. y is a;b (boxed list of two numbers)
-NB. @: is infinite-rank atop: unbox each element then sum
-mcp_add =: +/ @: >
+NB. y is a;b (boxed pair of numbers)
+add      =: +/ @: >
+multiply =: */ @: >
 ```
 
-The verb is purely tacit. `>` unboxes the argument list, giving a numeric array; `+/` inserts `+` between all elements.
-
-Test it standalone before wiring it in:
+`>` unboxes the pair into a numeric array; `+/` or `*/` inserts the operator across it. Test standalone:
 
 ```sh
 jconsole
-   load 'j-tools/add.ijs'
-   mcp_add 3;5
+   load '~/jdev/jmcp/j-tools/math.ijs'
+   add_math_ 3 ; 5
 8
-```
-
-### Example 2 — `multiply`: product of two numbers
-
-**`j-tools/multiply.ijs`**
-
-```j
-NB. multiply.ijs - Multiply two numbers
-NB. Standalone test:  load 'j-tools/multiply.ijs'  then  mcp_multiply 6;7  NB. gives 42
-
-coclass 'jhs'
-
-NB. y is a;b (boxed list of two numbers)
-NB. @: is infinite-rank atop: unbox each element then take product
-mcp_multiply =: */ @: >
-```
-
-Same pattern: `>` unboxes, `*/` inserts `*`.
-
-```sh
-jconsole
-   load 'j-tools/multiply.ijs'
-   mcp_multiply 6;7
+   multiply_math_ 6 ; 7
 42
 ```
 
-### Registering the tools in `mcp_tools.ijs`
-
-Once the verbs work standalone, register them:
+#### Step 2 — Add adapter verbs to `mcp_tool_registry.ijs`
 
 ```j
-NB. 1. Load the implementation files
-load '~/jdev/jmcp/j-tools/add.ijs'
-load '~/jdev/jmcp/j-tools/multiply.ijs'
+NB. Adapter verbs (4:0 — agenda calls dyadically; x=tool name, y=args object)
+mcp_run_add =: 4 : 0
+  a =. 'a' mcp_getfield_jhs_ y
+  b =. 'b' mcp_getfield_jhs_ y
+  ": add_math_ a ; b
+)
 
-NB. 2. Define JSON Schema strings for each tool
-mcp_schema_add =: '{"type":"object","properties":{"a":{"type":"number"},"b":{"type":"number"}},"required":["a","b"]}'
+mcp_run_multiply =: 4 : 0
+  a =. 'a' mcp_getfield_jhs_ y
+  b =. 'b' mcp_getfield_jhs_ y
+  ": multiply_math_ a ; b
+)
+```
+
+Adapter verbs must return a **string** — `mcp_ok_result` wraps it as JSON text. Use `":` to convert numeric results.
+
+Then extend the dispatch table (append before `mcp_run_unknown_tool`):
+
+```j
+MCP_DISPATCH_NAMES =: MCP_DISPATCH_NAMES , 'add' ; 'multiply'
+
+MCP_DISPATCH_GERUNDS =: mcp_run_list_news`...`mcp_run_add`mcp_run_multiply`mcp_run_unknown_tool
+```
+
+#### Step 3 — Register in `mcp_tools.ijs`
+
+```j
+NB. Load the math locale
+load '~/jdev/jmcp/j-tools/math.ijs'
+
+NB. JSON schemas
+mcp_schema_add      =: '{"type":"object","properties":{"a":{"type":"number"},"b":{"type":"number"}},"required":["a","b"]}'
 mcp_schema_multiply =: '{"type":"object","properties":{"a":{"type":"number"},"b":{"type":"number"}},"required":["a","b"]}'
 
-NB. 3. Add entries to the registry
+NB. Registry entries
 MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('add'      ; 'Add two numbers'      ; mcp_schema_add)
 MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('multiply' ; 'Multiply two numbers' ; mcp_schema_multiply)
 ```
 
-### Dispatching in `mcp_dispatch`
-
-Add a `case.` for each tool in the `select.` block:
-
-```j
-case. 'add' do.
-  a =. 'a' mcp_getfield y
-  b =. 'b' mcp_getfield y
-  ": mcp_add a ; b
-
-case. 'multiply' do.
-  a =. 'a' mcp_getfield y
-  b =. 'b' mcp_getfield y
-  ": mcp_multiply a ; b
-```
-
-`mcp_dispatch` must return a **string** (the result is wrapped by `mcp_ok_result` and sent as JSON text). Use `":` to convert a numeric result.
-
-### End-to-end test
+#### Step 4 — End-to-end test
 
 ```sh
 curl -s -X POST http://localhost:65001/mcp \
   -H 'Content-Type: application/json' \
   -H 'Mcp-Session-Id: SESSION_ID' \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"add","arguments":{"a":3,"b":5}}}' \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"add","arguments":{"a":3,"b":5}}}' \
   | python3 -m json.tool
 ```
 
-Expected result field: `"8"`.
+Expected `result.content[0].text`: `"8"`.
 
 ---
 
 ## Current Tools
 
+All tools require `FINNHUB_API_KEY` to be set in the environment (see [Prerequisites](#prerequisites)).
+
 | Tool | Description |
 |------|-------------|
-| `list_news` | List latest market news (Finnhub) |
-| `get_market_data` | Real-time quote for a stock ticker |
-| `get_basic_financials` | Key financial metrics for a stock |
-| `get_recommendation_trends` | Analyst recommendation trends for a stock |
+| `list_news` | Latest market news — categories: `general`, `forex`, `crypto`, `merger` |
+| `get_market_data` | Real-time quote for a stock ticker (open, close, high, low, etc.) |
+| `get_basic_financials` | Key financial metrics — metric groups: `all`, `price`, `valuation`, `margin` |
+| `get_recommendation_trends` | Analyst buy/hold/sell recommendation trends by period |
 
 ---
 
@@ -257,13 +318,15 @@ Expected result field: `"8"`.
 
 | Rule | Why it matters |
 |------|----------------|
-| Ravel before `-:` comparison: `(,k) -: (,nx)` | Literal strings are rank-0; `dec_pjson_` strings are rank-1 — bare `-:` will fail |
 | `return.` ignores its argument — assign first | `r =. value ⋄ return.` not `return. value` |
 | End verb bodies with an explicit result variable | Avoids returning loop counters |
-| `_jhs_` suffix for all cross-locale calls | Handlers run in a `mcp` locale; `jhs`-locale globals need the explicit suffix |
+| `_jhs_` suffix for all cross-locale calls | Handlers run in a `mcp` locale (copath: z only); jhs-locale verbs need the explicit suffix |
+| Adapter verbs must be `4 : 0` (dyadic) | Agenda `@.` always calls the selected gerund dyadically |
 | `htmlresponse` closes the socket — call exactly once | Calling twice crashes the request |
 | Negative numbers in JSON: `(": n) rplc '_';'-'` | J prints `_32601`; JSON requires `-32601` |
 | `OKURL =: 0$<''` before `addOKURL` | `addOKURL` requires a boxed list; the JHS default is a plain string |
+| `2!:5` returns numeric `0` for unset env vars | Type-check with `3!:0` before treating as a string |
+| Control structures only inside verb bodies | `if./while./try.` are not valid at script top level — wrap in a `3 : 0` verb |
 
 Full details and examples: `docs/JHSinfo.md`.
 
@@ -272,4 +335,5 @@ Full details and examples: `docs/JHSinfo.md`.
 ## Requirements
 
 - [J 9.x](https://www.jsoftware.com/#/README) with the `ide/jhs` and `convert/pjson` addons installed
+- A free [Finnhub API key](https://finnhub.io/register) for the Finnhub tools
 - No other runtime dependencies
