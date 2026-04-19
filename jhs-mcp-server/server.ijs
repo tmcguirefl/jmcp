@@ -10,7 +10,7 @@ load '~addons/ide/jhs/core.ijs'
 coclass 'jhs'
 
 NB. 2. Path to configuration file — only site that needs editing per deployment
-MCP_CONFIG =: '/Users/tomdevel/jdev/jmcp/config.ijs'
+MCP_CONFIG =: '/Users/tomdevel/jdev/jmcp/j-tools/config.ijs'
 
 NB. 3. Define config verb - called by jhscfg AFTER configdefault.
 NB.    Reads PORT and AUTO from globals set by config.ijs.
