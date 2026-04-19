@@ -6,8 +6,10 @@ NB. Loaded by server.ijs before mcp_handler.ijs
 coclass 'jhs'
 
 NB. Load tool implementations
-load '/Users/tomdevel/jdev/jmcp/j-tools/add.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/multiply.ijs'
+load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_list_news.ijs'
+load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_market_data.ijs'
+load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_basic_financials.ijs'
+load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub_get_recommendation_trends.ijs'
 
 NB. -----------------------------------------------------------------------
 NB. mcp_getfield - look up a key in a pjson-decoded object
@@ -35,13 +37,19 @@ NB. -----------------------------------------------------------------------
 NB. Tool registry - boxed list, each entry is name;description;inputSchema_json
 NB. inputSchema is pre-encoded JSON to avoid nested enc_pjson_ complexity
 
-mcp_schema_add =: '{"type":"object","properties":{"a":{"type":"number","description":"First number"},"b":{"type":"number","description":"Second number"}},"required":["a","b"]}'
+mcp_schema_list_news =: '{"type":"object","properties":{"category":{"type":"string","description":"News category: general, forex, crypto, or merger","default":"general"},"count":{"type":"integer","description":"Number of news items to return","default":10}},"required":[]}'
 
-mcp_schema_multiply =: '{"type":"object","properties":{"a":{"type":"number","description":"First number"},"b":{"type":"number","description":"Second number"}},"required":["a","b"]}'
+mcp_schema_get_market_data =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"}},"required":["stock"]}'
+
+mcp_schema_get_basic_financials =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"},"metric":{"type":"string","description":"Metric group: all, price, valuation, margin, etc.","default":"all"}},"required":["stock"]}'
+
+mcp_schema_get_recommendation_trends =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"}},"required":["stock"]}'
 
 MCP_TOOL_REGISTRY =: 0$<''
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('add' ; 'Add two numbers a and b' ; mcp_schema_add)
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('multiply' ; 'Multiply two numbers a and b' ; mcp_schema_multiply)
+MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('list_news'                 ; 'List latest market news'                          ; mcp_schema_list_news)
+MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_market_data'           ; 'Get market data (quote) for a given stock'        ; mcp_schema_get_market_data)
+MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_basic_financials'      ; 'Get basic financials for a given stock'           ; mcp_schema_get_basic_financials)
+MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_recommendation_trends' ; 'Get recommendation trends for a given stock'      ; mcp_schema_get_recommendation_trends)
 
 NB. -----------------------------------------------------------------------
 NB. Encode one tool entry as a JSON object string
@@ -87,13 +95,28 @@ mcp_calltool =: 4 : 0
 )
 
 NB. x is tool name, y is decoded arguments object
-NB. Returns result as string (using ": to format numbers)
+NB. Returns result as string (raw JSON from Finnhub API)
 mcp_dispatch =: 4 : 0
-  a =. 'a' mcp_getfield y
-  b =. 'b' mcp_getfield y
   select. x
-  case. 'add'      do. ": mcp_add a ; b
-  case. 'multiply' do. ": mcp_multiply a ; b
-  case. do. 'unknown tool: ' , x assert 0
+  case. 'list_news' do.
+    category =. 'category' mcp_getfield y
+    count    =. 'count'    mcp_getfield y
+    NB. Apply defaults when fields are absent (mcp_getfield returns '' if missing)
+    if. 0 = # category do. category =. 'general' end.
+    if. 0 = # ": count  do. count    =. 10        end.
+    mcp_list_news category ; count
+  case. 'get_market_data' do.
+    stock =. 'stock' mcp_getfield y
+    mcp_get_market_data stock
+  case. 'get_basic_financials' do.
+    stock  =. 'stock'  mcp_getfield y
+    metric =. 'metric' mcp_getfield y
+    if. 0 = # metric do. metric =. 'all' end.
+    mcp_get_basic_financials stock ; metric
+  case. 'get_recommendation_trends' do.
+    stock =. 'stock' mcp_getfield y
+    mcp_get_recommendation_trends stock
+  case. do.
+    'unknown tool: ' , x assert 0
   end.
 )
