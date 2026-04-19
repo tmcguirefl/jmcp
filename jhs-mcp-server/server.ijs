@@ -1,6 +1,6 @@
 NB. server.ijs - MCP server entry point
 NB. Usage:
-NB.   jconsole -js "load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/server.ijs'"
+NB.   jconsole -js "load '~/jdev/jmcp/jhs-mcp-server/server.ijs'"
 NB. Or interactively:
 NB.   cd '/Users/tomdevel/jdev/jmcp' then load 'jhs-mcp-server/server.ijs'
 
@@ -10,7 +10,7 @@ load '~addons/ide/jhs/core.ijs'
 coclass 'jhs'
 
 NB. 2. Path to configuration file — only site that needs editing per deployment
-MCP_CONFIG =: '/Users/tomdevel/jdev/jmcp/j-tools/config.ijs'
+MCP_CONFIG =: '~/jdev/jmcp/j-tools/config.ijs'
 
 NB. 3. Define config verb - called by jhscfg AFTER configdefault.
 NB.    Reads PORT and AUTO from globals set by config.ijs.
@@ -20,8 +20,8 @@ config =: 3 : 0
 )
 
 NB. 4. Load MCP modules — mcp_tools.ijs loads config.ijs via MCP_CONFIG
-load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
-load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
+load '~/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
+load '~/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
 
 NB. 4. Allow /mcp URL without login redirect
 NB. OKURL is initialized to '' (char) by configdefault inside init.

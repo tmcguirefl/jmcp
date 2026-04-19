@@ -18,8 +18,8 @@ NB. Tool group loads
 NB. Each file should use its own coclass locale and define its verbs there.
 NB. mcp_tool_registry.ijs must be loaded last — it builds the gerund dispatch
 NB. table from whatever tool locale verbs are already defined.
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub.ijs'
-load '/Users/tomdevel/jdev/jmcp/j-tools/mcp_tool_registry.ijs'
+load '~/jdev/jmcp/j-tools/finnhub.ijs'
+load '~/jdev/jmcp/j-tools/mcp_tool_registry.ijs'
 
 NB. -----------------------------------------------------------------------
 NB. JSON Schema strings — one per tool, injected verbatim into tools/list.
