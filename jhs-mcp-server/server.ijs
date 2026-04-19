@@ -9,15 +9,17 @@ load '~addons/ide/jhs/core.ijs'
 
 coclass 'jhs'
 
-NB. 2. Define config verb - called by jhscfg inside init AFTER configdefault
-NB.    This is the correct way to override AUTO without it being overwritten
+NB. 2. Path to configuration file — only site that needs editing per deployment
+MCP_CONFIG =: '/Users/tomdevel/jdev/jmcp/config.ijs'
+
+NB. 3. Define config verb - called by jhscfg AFTER configdefault.
+NB.    Reads PORT and AUTO from globals set by config.ijs.
 config =: 3 : 0
-  AUTO =: 0       NB. suppress automatic browser launch
-  PORT =: 65001   NB. listen port
+  AUTO =: 0
+  PORT =: MCP_PORT
 )
 
-NB. 3. Load MCP modules
-NB.    mcp_tools.ijs first - defines mcp_getfield used by mcp_handler.ijs
+NB. 4. Load MCP modules — mcp_tools.ijs loads config.ijs via MCP_CONFIG
 load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_tools.ijs'
 load '/Users/tomdevel/jdev/jmcp/jhs-mcp-server/mcp_handler.ijs'
 
@@ -36,7 +38,7 @@ NB.    Control structures require a verb body, so the loop lives in mcp_serve.
 mcp_serve =: 3 : 0
   jhscfg''          NB. runs configdefault then our config verb (AUTO=:0, PORT=:65001)
   IFJHS_z_ =: 1
-  LOCALHOST =: '0.0.0.0'
+  LOCALHOST =: MCP_LOCALHOST
   SKSERVER_jhs_ =: _1
   r =. dobind''
   if. 0~:r do.

@@ -1,15 +1,16 @@
-NB. mcp_tools.ijs - Tool registry and dispatcher
-NB. Defines: mcp_getfield, MCP_TOOL_REGISTRY, mcp_tools_json, mcp_dispatch
-NB. mcp_ok_result, mcp_err_result
-NB. Loaded by server.ijs before mcp_handler.ijs
+NB. mcp_tools.ijs - Generic MCP tool framework
+NB. Defines: mcp_getfield, MCP_TOOL_REGISTRY, mcp_tools_json,
+NB.          mcp_ok_result, mcp_err_result, mcp_calltool
+NB. Loaded by server.ijs; loads config via MCP_CONFIG set in server.ijs.
+NB. No tool-specific content — all tools, schemas, and settings live in config.ijs.
 
 coclass 'jhs'
 
-NB. Load all Finnhub tools (coclass 'finnhub' — isolated locale, single APIKEY read)
-load '/Users/tomdevel/jdev/jmcp/j-tools/finnhub.ijs'
+NB. Initialise registry before config.ijs appends to it
+MCP_TOOL_REGISTRY =: 0$<''
 
-NB. Load agenda-based dispatch table (defines mcp_dispatch)
-load '/Users/tomdevel/jdev/jmcp/j-tools/mcp_tool_registry.ijs'
+NB. Load configuration: server settings, tool locales, schemas, registry entries
+load MCP_CONFIG_jhs_
 
 NB. -----------------------------------------------------------------------
 NB. mcp_getfield - look up a key in a pjson-decoded object
@@ -22,24 +23,6 @@ mcp_getfield =: 4 : 0
   idx  =. keys i. < x       NB. search for boxed x; i. returns #keys on miss
   if. idx < # keys do. > 1 { idx { y else. '' end.
 )
-
-NB. -----------------------------------------------------------------------
-NB. Tool registry - boxed list, each entry is name;description;inputSchema_json
-NB. inputSchema is pre-encoded JSON to avoid nested enc_pjson_ complexity
-
-mcp_schema_list_news =: '{"type":"object","properties":{"category":{"type":"string","description":"News category: general, forex, crypto, or merger","default":"general"},"count":{"type":"integer","description":"Number of news items to return","default":10}},"required":[]}'
-
-mcp_schema_get_market_data =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"}},"required":["stock"]}'
-
-mcp_schema_get_basic_financials =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"},"metric":{"type":"string","description":"Metric group: all, price, valuation, margin, etc.","default":"all"}},"required":["stock"]}'
-
-mcp_schema_get_recommendation_trends =: '{"type":"object","properties":{"stock":{"type":"string","description":"Stock ticker symbol, e.g. AAPL"}},"required":["stock"]}'
-
-MCP_TOOL_REGISTRY =: 0$<''
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('list_news'                 ; 'List latest market news'                          ; mcp_schema_list_news)
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_market_data'           ; 'Get market data (quote) for a given stock'        ; mcp_schema_get_market_data)
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_basic_financials'      ; 'Get basic financials for a given stock'           ; mcp_schema_get_basic_financials)
-MCP_TOOL_REGISTRY =: MCP_TOOL_REGISTRY , <('get_recommendation_trends' ; 'Get recommendation trends for a given stock'      ; mcp_schema_get_recommendation_trends)
 
 NB. -----------------------------------------------------------------------
 NB. Encode one tool entry as a JSON object string
