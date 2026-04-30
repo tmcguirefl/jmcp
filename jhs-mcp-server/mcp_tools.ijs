@@ -19,8 +19,9 @@ NB. where each cell is itself a boxed item.
 NB. x is key string, y is decoded pjson object matrix
 NB. Returns the value (unboxed), or '' if key not found
 mcp_getfield =: 4 : 0
-  keys =. 0 {"1 y           NB. boxed key column; pjson keys are rank-1 strings, no rebox needed
-  idx  =. keys i. < x       NB. search for boxed x; i. returns #keys on miss
+  if. 2 > # $ y do. '' return. end.   NB. dec_pjson_ '{}' returns rank-1 empty, not 0 2 matrix
+  keys =. 0 {"1 y
+  idx  =. keys i. < x
   if. idx < # keys do. > 1 { idx { y else. '' end.
 )
 

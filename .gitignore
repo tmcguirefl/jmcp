@@ -31,6 +31,9 @@ temp/
 # J language reference docs (Obsidian vault, not source code)
 docs/
 
+# Archived / example code — not part of the active project
+attic/
+
 # Working drafts superseded by CLAUDE.md and .gitignore
 MyClaude.md
 MyGitIgnore.txt
