@@ -37,12 +37,13 @@ MCP Client (Claude Desktop, etc.)
 
 ```
 jhs-mcp-server/
-  server.ijs            — Entry point: loads JHS, sets port, drives request loop
+  config_jhs_mcp.ijs    — Entry point: server settings, loads JHS, drives request loop
   mcp_handler.ijs       — JSON-RPC 2.0 routing (initialize, tools/list, tools/call)
   mcp_tools.ijs         — Tool registry (MCP_TOOL_REGISTRY), mcp_getfield,
                           result wrappers, loads tool locales
 
 j-tools/
+  config.ijs            — Port, bind address, tool loads, schemas, registry entries
   finnhub.ijs           — coclass 'finnhub': all Finnhub tools, APIKEY, fetch helper
   mcp_tool_registry.ijs — Agenda dispatch table: adapter verbs, MCP_DISPATCH_NAMES,
                           MCP_DISPATCH_GERUNDS, mcp_dispatch
@@ -81,23 +82,46 @@ The server reads the key once at load time into the isolated `finnhub` locale. I
 
 ---
 
-## Running the Server
+## Getting Started
+
+### 1. Clone the repository
 
 ```sh
-jconsole -js "load '~/jdev/jmcp/jhs-mcp-server/server.ijs'"
+git clone git@github.com:tmcguirefl/jmcp.git
+cd jmcp
 ```
 
-The server prints:
+### 2. Set your Finnhub API key
+
+```sh
+export FINNHUB_API_KEY=your_key_here
+```
+
+Add this to `~/.zshrc` or `~/.bash_profile` to make it permanent.
+
+### 3. Start the server
+
+```sh
+jconsole -js "load '~/jdev/jmcp/jhs-mcp-server/config_jhs_mcp.ijs'" > /tmp/jmcp_server.log 2>&1 &
+```
+
+The server prints to the log:
 
 ```
-jmcp MCP server listening on http://0.0.0.0:65001/mcp
+jmcp listening on http://0.0.0.0:65001/mcp
 ```
 
 Kill it with:
 
 ```sh
-pkill -f "jconsole.*server.ijs"
+pkill -f "jconsole.*config_jhs_mcp"
 ```
+
+> **Note on the repo path:** the server uses `~/jdev/jmcp/` as its base path. If you cloned elsewhere,
+> edit `MCP_PORT`, `MCP_LOCALHOST`, and the `load` paths near the top of
+> `jhs-mcp-server/config_jhs_mcp.ijs` and `j-tools/config.ijs` to match your location.
+
+---
 
 ### Quick smoke test
 
@@ -135,8 +159,9 @@ curl -s -X POST http://localhost:65001/mcp \
 
 ```j
 mcp_getfield =: 4 : 0
-  keys =. 0 {"1 y       NB. boxed key column from the n×2 pjson matrix
-  idx  =. keys i. < x   NB. i. uses match on boxes; returns #keys on miss
+  if. 2 > # $ y do. '' return. end.   NB. dec_pjson_ '{}' returns rank-1 empty, not 0 2 matrix
+  keys =. 0 {"1 y                     NB. boxed key column from the n×2 pjson matrix
+  idx  =. keys i. < x                 NB. i. uses match on boxes; returns #keys on miss
   if. idx < # keys do. > 1 { idx { y else. '' end.
 )
 ```
